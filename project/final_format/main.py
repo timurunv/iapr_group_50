@@ -10,9 +10,13 @@ def main():
     reference_images = load_images(reference_path_ref)
     train_images = load_images(train_path_ref)
     test_images = load_images(test_path_ref)
-    #segmented_reference_images = segmentation(reference_images)
-    #segmented_train_images = segmentation(train_images)
-    #segmented_test_images = segmentation(test_images)
+    
+    df = pd.read_csv('/Users/louiscuendet/Documents/EPFL NEURO-X /Image Analysis and Pattern Recognition/iapr_group_50/project/final_format/sample_submission.csv')
+    for image in test_images:
+        segmented_image = segmentation(image)
+        df= classification(segmented_image)
+    
+
     
 
 
