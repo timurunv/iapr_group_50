@@ -62,7 +62,7 @@ def chocolate_masking_weighted(img, threshold=30, weights=(1.0, 1.0, 0.0)):
     # Étendre les poids pour faire un broadcast
     w = np.array(weights).reshape((1, 1, 3))
 
-    for index, row in chocolate_colors.iloc[::5000].iterrows():
+    for index, row in chocolate_colors.iloc[::1000].iterrows():
         diff = hsv_img - np.array(row, dtype=np.float32)  # shape (H, W, 3)
         weighted_diff = diff ** 2 * w
         dist = np.sqrt(np.sum(weighted_diff, axis=2))
