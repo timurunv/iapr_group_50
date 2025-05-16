@@ -17,23 +17,19 @@ import cv2 # are we allowed?
 import numpy as np
 
 import platform
-import torch.nn as nn
-import torch.nn.functional as F
 from PIL import Image
 import torch
-from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 from typing import Optional, Callable
 from sklearn.metrics import accuracy_score, f1_score
 from sklearn.covariance import LedoitWolf
-import torch.optim as optim
 
 import os
 from skimage.measure import label, regionprops
 from skimage.color import rgb2gray
 
-import reference_segmentation as rs
-import segmentation_clean_background as scb
+#import reference_segmentation as rs
+#import segmentation_clean_background as scb
 from skimage.util import img_as_ubyte
 
 import numpy as np
@@ -41,27 +37,6 @@ from sklearn.neighbors import KNeighborsClassifier
 import matplotlib.pyplot as plt
 
 def cluster1_1class(cropped_choc) :
-
-    mean_descriptors_cluster1 = []
-
-    for i in cluster1 :
-        img = patterns[i] 
-        contour = contours_patterns[i]
-        plt.imshow(img)
-
-        # Ensure it has the right shape and type
-        contour = np.array(contour, dtype=np.int32)
-        if contour.ndim == 2:
-            contour = contour.reshape(-1, 1, 2)
-
-        mask = np.zeros(img.shape[:2], dtype=np.uint8)
-        cv2.drawContours(mask, [contour], -1, color=255, thickness=-1) # Fill the contour on the mask
-        mean_color = cv2.mean(img, mask=mask)  # Returns (B, G, R, alpha) # Compute the average color inside the contour
-        mean_color_rgb = mean_color[:3][::-1]  # Convert BGR to RGB if needed
-
-        contour = linear_interpolation([contours_patterns[i]], n_samples = 150)
-        mean_descriptors_cluster1.append(normalize_descriptors(translation_invariant(rotation_invariant(compute_descriptor_padding(contour)))))
-
 
     # Fourier descriptors discrimination
     choc_contour = []
@@ -72,17 +47,6 @@ def cluster1_1class(cropped_choc) :
     if contours:
         choc_contour = np.fliplr(max(contours, key=lambda x: x.shape[0]))
     choc_contour = choc_contour.astype(np.float32)
-
-    descriptor_choc = normalize_descriptors(translation_invariant(rotation_invariant((compute_descriptor_padding([choc_contour])))))
-
-    circle_des = (mean_descriptors_cluster1[0] + mean_descriptors_cluster1[1]) /2
-    mean_descriptors_cluster1 = [circle_des, mean_descriptors_cluster1[2]]
-
-    closest = find_closest_shape(descriptor_choc, {i: row for i, row in enumerate(mean_descriptors_cluster1)})
-
-    print(closest)
-    """ if closest == 1:
-        return "Passion au lait" """
 
 
     # Color discrimination
@@ -193,7 +157,6 @@ def cluster1_2class(chocolate) :
     y = np.array([1, 2, 3, 4, 5, 6, 7])
 
     combined = np.hstack((mean_color_rgb, mean_hsv, texture, rectangularity, rms_contrast))
-    print(combined)
 
     # Normalization (sometimes help recognize, sometimes classifies wrongly when rightly classified without norm)
     from sklearn.preprocessing import StandardScaler
@@ -262,6 +225,15 @@ def cluster2_class(chocolate) :
     mean_hsv = cv2.mean(hsv_img, mask=mask)  # Returns (H, S, V, alpha)
     mean_hsv = mean_hsv[:3]  # Remove alpha
 
+    # Contrast
+    img = np.array(chocolate)
+    mask = np.zeros(img.shape[:2], dtype=np.uint8)
+    cv2.drawContours(mask, [choc_contour], -1, color=255, thickness=-1)
+    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    masked = cv2.bitwise_and(gray, gray, mask=mask)
+    mean_intensity = np.mean(masked[mask > 0])
+    rms_contrast = np.sqrt(np.mean((masked[mask > 0] - mean_intensity) ** 2))
+
 
     # Reference
     X_rgb_hsv_cont = np.array([ 
@@ -303,7 +275,7 @@ def cluster2_class(chocolate) :
     
     return "Unable to determine"
 
-def choc_classifier(chocolate, patterns, contours_patterns) :
+def choc_classifier(chocolate) :
     choc_class = ''
 
     # Compute the contours of the patterns and of the chocolate
@@ -311,7 +283,6 @@ def choc_classifier(chocolate, patterns, contours_patterns) :
     img = np.array(chocolate)
     img = np.mean(img, axis=2)
     binary = img > 0
-    print(binary.shape)
     contours = find_contours(binary, level=0.5)
     if contours:
         choc_contour = np.fliplr(max(contours, key=lambda x: x.shape[0]))
