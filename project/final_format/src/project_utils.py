@@ -1,4 +1,5 @@
 import matplotlib.image as mpimg
+import matplotlib.pyplot as plt
 import os
 
 def load_images(path_ref):
@@ -20,3 +21,13 @@ def load_images(path_ref):
         images_ref.append(clean_name)
 
     return loaded_images,images_ref
+
+def show_comparison(original, modified):
+    fig, (ax1, ax2) = plt.subplots(ncols=2)
+    ax1.imshow(original)
+    ax1.set_title('Original')
+    ax1.axis('off')
+    ax2.imshow(modified)
+    ax2.set_title('segmented')
+    ax2.axis('off')
+    plt.show()
