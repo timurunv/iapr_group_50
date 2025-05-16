@@ -4,7 +4,7 @@ import matplotlib.image as mpimg
 import numpy as np
 import cv2 
 
-def segmentation(img):
+def segmentation_clean_background(img):
     # --- 1. Load and Resize Image ---
     img = cv2.resize(img, (1600,1067))
 
@@ -49,16 +49,46 @@ def segmentation(img):
 
     return segmented_objects
 
-def plot_choc(img, real_img):
-    plt.figure()
-    plt.subplot(1,2,1)
-    plt.imshow(img, cmap='gray')
-    plt.title("segmented")
-    plt.axis('off')
 
-    plt.subplot(1,2,2)
-    plt.imshow(real_img)
-    plt.title("original")
-    plt.axis('off')
+def segmentation_background_stylo(img):
+    # --- 1. Load and Resize Image ---
+    img = cv2.resize(img, (1600,1067))
 
-    plt.show()
+    # --- 2. Convert to HSV ---
+    hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV_FULL)
+    value = hsv[:, :, 1]
+
+
+    # --- 3. Thresholding ---
+    thresh = 100
+    value_thresh = np.zeros_like(value)
+    value_thresh[value > thresh] = value[value > thresh]
+
+    # --- 4. Canny Edge Detection ---
+    edges = cv2.Canny(value_thresh, 200, 250)
+
+    # --- 5. Dilate to Connect Broken Edges ---
+    radius = 2
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2*radius+1, 2*radius+1))
+    dilated = cv2.dilate(edges, kernel, iterations=1)
+
+    # --- 7. Remove Small Objects by Area Filtering ---
+    # Find all contours
+    contours, hierarchy = cv2.findContours(dilated, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    # --- 7. Replace small contour filtering with ellipse fitting ---
+    mask = np.zeros_like(dilated)
+
+    for cnt in contours:
+        area = cv2.contourArea(cnt)
+        if area < 200000:
+            cv2.drawContours(mask, [cnt], -1, 255, thickness=cv2.FILLED)
+
+    # Separate objects
+    kernel = np.ones((40, 40), np.uint8) #TODO à voir si on peut réduire la taille du kernel
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=1)
+
+    # --- 8. Apply Mask to Original Image ---
+    segmented_objects = cv2.bitwise_and(img, img, mask=mask)
+
+    return segmented_objects
