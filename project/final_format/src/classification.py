@@ -334,7 +334,7 @@ def classification(segmented_image) :
 
     # Threshold the result to create a binary mask
     masked_img = np.mean(segmented_image, axis=2) > 0
-    masked_img = remove_small_objects(masked_img, min_size=5000)
+    masked_img = remove_small_objects(masked_img, min_size=15000)
     
     # Label connected components
     labeled_mask = label(masked_img)
@@ -358,14 +358,13 @@ def classification(segmented_image) :
         # Area
         choc_contour = []
         binary = isolated_mask > 0
-        #print(binary.shape)
         contours = find_contours(binary, level=0.5)
         if contours:
             choc_contour = np.fliplr(max(contours, key=lambda x: x.shape[0]))
-        # Compute the ratio perimeter vs area of the chocolate and assign the cluster
         choc_contour = choc_contour.astype(np.float32)
         area = cv2.contourArea(choc_contour)
 
+        # Invalid shape
         if (isolated_img.shape[0] < 2 or isolated_img.shape[1] < 2) : 
             continue
     
@@ -412,6 +411,7 @@ def classification(segmented_image) :
 
                 isolated_imgs.append(masked_choco)
             # --- WATERSHED END ---
+            
             for isolated in isolated_imgs:
                 choc_class = choc_classifier(isolated)
 
@@ -442,7 +442,7 @@ def classification(segmented_image) :
                 if choc_class == "Straciatella":
                     chocolate_count[12] += 1
 
-                #print(choc_class)  
+                print(choc_class)  
             continue
 
         # Regions too small
@@ -479,7 +479,7 @@ def classification(segmented_image) :
         if choc_class == "Straciatella":
             chocolate_count[12] += 1
 
-        #print(choc_class)
+        print(choc_class)
 
     
 
