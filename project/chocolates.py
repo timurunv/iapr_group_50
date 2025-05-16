@@ -1,7 +1,8 @@
 import numpy as np
+import pandas as pd
 import cv2
 
-#Constants file with the mean hsv values for each chocolate
+"""#Constants file with the mean hsv values for each chocolate
 AMANDINA_COLOR = (np.float64(58.40766694146743), np.float64(66.15457543281121), np.float64(152.40210222588624))
 ARABIA_COLOR = (np.float64(38.59955068800899), np.float64(112.08010390339793), np.float64(94.69931199101376))
 COMTESSE_COLOR = (np.float64(52.0501003440367), np.float64(27.74534116972477), np.float64(201.78411697247705))
@@ -38,7 +39,9 @@ chocolate_colors = [
     STRACCIATELA_COLOR,
     TENTATION_NOIR_COLOR,
     TRIANGOLO_COLOR
-]
+]"""
+
+chocolate_colors = pd.read_csv('/Users/louiscuendet/Documents/EPFL NEURO-X /Image Analysis and Pattern Recognition/iapr_group_50/project/hs_samples/concatenated.csv')
 
 def chocolate_masking(img,threshold=50):
     """
@@ -53,8 +56,8 @@ def chocolate_masking(img,threshold=50):
     hs = hsv[:, :, :2]  # Use only Hue and Saturation
     mask_total = np.zeros(hsv.shape[:2], dtype=np.uint8)
 
-    for color in chocolate_colors:
-        target_hs = np.array(color[:2], dtype=np.float32)  # Only H and S
+    for index, row in chocolate_colors.iterrows():
+        target_hs = np.array(row, dtype=np.float32)  # Only H and S
         diff = hs - target_hs
         distance = np.linalg.norm(diff, axis=2)
 
