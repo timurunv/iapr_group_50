@@ -35,8 +35,6 @@ from sklearn.neighbors import KNeighborsClassifier
 import matplotlib.pyplot as plt
 
 def cluster1_1class(cropped_choc) :
-
-    # Fourier descriptors discrimination
     choc_contour = []
     img = np.array(cropped_choc)
     img = np.mean(img, axis=2)
@@ -146,8 +144,8 @@ def cluster1_2class(chocolate) :
             x1, y1, x2, y2 = line[0]
             cv2.line(line_img, (x1, y1), (x2, y2), (0, 0, 255), 2)
     stripe_count = len(lines) if lines is not None else 0
-    #print(stripe_count)
-    if stripe_count <= 18 and stripe_count >= 8 :
+
+    if stripe_count <= 20 and stripe_count >= 8 :
         return "Straciatella"
 
 
@@ -167,7 +165,7 @@ def cluster1_2class(chocolate) :
     # [72.46, 75.92, 95.81, 47.73, 81.07, 96.69, 0.7851, 0.8144, 32.16]
 
     #X_rgb_hsv_text_rect_cont[:, -1] *= 0.1 
-    y = np.array([1, 2, 3, 4, 6, 7]) # 1,5
+    y = np.array([1, 2, 3, 4, 6, 7]) # ,5
 
     combined = np.hstack((mean_color_rgb, mean_hsv, texture, rectangularity, rms_contrast))
     #print(combined)
@@ -296,6 +294,7 @@ def choc_classifier(chocolate) :
     img = np.array(chocolate)
     img = np.mean(img, axis=2)
     binary = img > 0
+    #print(binary.shape)
     contours = find_contours(binary, level=0.5)
     if contours:
         choc_contour = np.fliplr(max(contours, key=lambda x: x.shape[0]))
@@ -356,14 +355,26 @@ def classification(segmented_image) :
         isolated_img = np.zeros_like(img_crop)
         isolated_img[mask_crop] = img_crop[mask_crop]
 
-        if (isolated_img.shape[0] < 2 or isolated_img.shape[1] < 2) : # To remove large objects
+        # Area
+        choc_contour = []
+        binary = isolated_mask > 0
+        #print(binary.shape)
+        contours = find_contours(binary, level=0.5)
+        if contours:
+            choc_contour = np.fliplr(max(contours, key=lambda x: x.shape[0]))
+        # Compute the ratio perimeter vs area of the chocolate and assign the cluster
+        choc_contour = choc_contour.astype(np.float32)
+        area = cv2.contourArea(choc_contour)
+
+        if (isolated_img.shape[0] < 2 or isolated_img.shape[1] < 2) : 
             continue
     
-        if (isolated_img.shape[0] > 300 or isolated_img.shape[1] > 300) : # To remove large objects
+        # Regions too large
+        if (isolated_img.shape[0] > 400 or isolated_img.shape[1] > 400) : 
             continue
 
         # For chocolates glued together
-        if (isolated_img.shape[0] > 230 or isolated_img.shape[1] > 230) : # To remove large objects
+        if (isolated_img.shape[0] > 230 or isolated_img.shape[1] > 230 or area > 20000) : 
             # Large object: apply Watershed to split it
             region_crop = isolated_mask[minr:maxr, minc:maxc].astype(np.uint8)
             chocolate_crop = segmented_image[minr:maxr, minc:maxc]
@@ -371,7 +382,7 @@ def classification(segmented_image) :
             # --- WATERSHED START ---
             # Create markers using distance transform
             dist = cv2.distanceTransform(region_crop * 255, cv2.DIST_L2, 5)
-            _, sure_fg = cv2.threshold(dist, 0.4 * dist.max(), 255, 0)
+            _, sure_fg = cv2.threshold(dist, 0.9 * dist.max(), 255, 0)
             sure_fg = np.uint8(sure_fg)
             unknown = cv2.subtract(region_crop * 255, sure_fg)
 
@@ -434,7 +445,8 @@ def classification(segmented_image) :
                 #print(choc_class)  
             continue
 
-        if isolated_img.shape[0] < 95 and isolated_img.shape[1] < 95 : # To remove small objects such as black squares (hard to pinpoint with remove small objects)
+        # Regions too small
+        if isolated_img.shape[0] < 95 and isolated_img.shape[1] < 95 :
             continue
 
         # Classify the chocolate
