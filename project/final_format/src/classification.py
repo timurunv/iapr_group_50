@@ -36,9 +36,6 @@ import matplotlib.pyplot as plt
 
 def cluster1_1class(cropped_choc) :
 
-    mean_descriptors_cluster1 = []
-
-
     # Fourier descriptors discrimination
     choc_contour = []
     img = np.array(cropped_choc)
@@ -137,6 +134,22 @@ def cluster1_2class(chocolate) :
     mean_intensity = np.mean(masked[mask > 0])
     rms_contrast = np.sqrt(np.mean((masked[mask > 0] - mean_intensity) ** 2))
 
+    # Stripe detection
+    gray = cv2.cvtColor(chocolate, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    edges = cv2.Canny(blurred, threshold1=50, threshold2=150, apertureSize=3)
+    lines = cv2.HoughLinesP(edges, rho=1, theta=np.pi/180, threshold=50,
+                            minLineLength=30, maxLineGap=10)
+    line_img = chocolate.copy()
+    if lines is not None:
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            cv2.line(line_img, (x1, y1), (x2, y2), (0, 0, 255), 2)
+    stripe_count = len(lines) if lines is not None else 0
+    print(stripe_count)
+    if stripe_count <= 18 and stripe_count >= 8 :
+        return "Straciatella"
+
 
     # Reference
     X_rgb_hsv_text_rect_cont = np.array([ 
@@ -144,7 +157,7 @@ def cluster1_2class(chocolate) :
         [51.69, 62.39, 89.09, 26.53, 118.61, 89.53, 0.7781, 0.7882, 34.08],     # class 2
         [181.48, 198.41, 202.34, 32.86, 29.1, 203.02, 0.8277, 0.7769, 27.39],   # class 3
         [65.061, 89.55, 129.29, 17.28, 127.29, 129.40, 0.7771, 0.7616, 27.15],  # class 4
-        [72.46, 75.92, 95.81, 47.73, 81.07, 96.69, 0.7851, 0.8144, 32.16],      # class 5
+        # [72.46, 75.92, 95.81, 47.73, 81.07, 96.69, 0.7851, 0.8144, 32.16],      # class 5
         [65.9, 68.21, 87.37, 51.97, 80.02, 87.68, 0.8273, 0.7967, 36.41],       # class 6
         [70.04, 78.85, 111.07, 27.55, 102.75, 111.14, 0.7792, 0.6865, 28.62],   # class 7 
     ])
@@ -154,9 +167,10 @@ def cluster1_2class(chocolate) :
     # [72.46, 75.92, 95.81, 47.73, 81.07, 96.69, 0.7851, 0.8144, 32.16]
 
     #X_rgb_hsv_text_rect_cont[:, -1] *= 0.1 
-    y = np.array([1, 2, 3, 4, 5, 6, 7])
+    y = np.array([1, 2, 3, 4, 6, 7]) # ,5
 
     combined = np.hstack((mean_color_rgb, mean_hsv, texture, rectangularity, rms_contrast))
+    #print(combined)
 
     # Normalization (sometimes help recognize, sometimes classifies wrongly when rightly classified without norm)
     from sklearn.preprocessing import StandardScaler
@@ -186,8 +200,8 @@ def cluster1_2class(chocolate) :
         return "Comtesse"
     if predicted_class == 4 :
         return "Noblesse"
-    if predicted_class == 5 :
-        return "Straciatella"
+    # if predicted_class == 5 :
+    #     return "Straciatella"
     if predicted_class == 6 :
         return "Tentation noir"
     if predicted_class == 7 :
@@ -282,7 +296,6 @@ def choc_classifier(chocolate) :
     img = np.array(chocolate)
     img = np.mean(img, axis=2)
     binary = img > 0
-    print(binary.shape)
     contours = find_contours(binary, level=0.5)
     if contours:
         choc_contour = np.fliplr(max(contours, key=lambda x: x.shape[0]))
@@ -334,12 +347,6 @@ def classification(segmented_image) :
     for region in regions:
         minr, minc, maxr, maxc = region.bbox
         isolated_mask = labeled_mask == region.label
-        
-        if np.abs(maxr-minr) > 200 and np.abs(maxc-minc) > 200 : # To remove large objects
-            continue
-
-        if np.abs(maxr-minr) < 120 and np.abs(maxc-minc) < 120 : # To remove small objects such as black squares (hard to pinpoint with remove small objects)
-            continue
 
         # Crop both the mask and the image to match
         img_crop = segmented_image[minr-1:maxr+1, minc-1:maxc+1]
@@ -348,35 +355,119 @@ def classification(segmented_image) :
         # Apply mask to the cropped image
         isolated_img = np.zeros_like(img_crop)
         isolated_img[mask_crop] = img_crop[mask_crop]
-        if isolated_img.shape[0] != 0 and isolated_img.shape[1] != 0 :
-            # Classify the chocolate
-            choc_class = choc_classifier(isolated_img)
-            if choc_class == "Jelly White":
-                chocolate_count[0] += 1
-            if choc_class == "Jelly Milk":
-                chocolate_count[1] += 1
-            if choc_class == "Jelly Black":
-                chocolate_count[2] += 1
-            if choc_class == "Amandina":
-                chocolate_count[3] += 1
-            if choc_class == "Crème Brulée":
-                chocolate_count[4] += 1
-            if choc_class == "Triangolo":
-                chocolate_count[5] += 1
-            if choc_class == "Tentation noir":
-                chocolate_count[6] += 1
-            if choc_class == "Comtesse":
-                chocolate_count[7] += 1
-            if choc_class == "Noblesse":
-                chocolate_count[8] += 1
-            if choc_class == "Noir authentique":
-                chocolate_count[9] += 1
-            if choc_class == "Passion au lait":
-                chocolate_count[10] += 1
-            if choc_class == "Arabia":
-                chocolate_count[11] += 1
-            if choc_class == "Straciatella":
-                chocolate_count[12] += 1
+
+        if (isolated_img.shape[0] < 2 or isolated_img.shape[1] < 2) : # To remove large objects
+            continue
+    
+        if (isolated_img.shape[0] > 300 or isolated_img.shape[1] > 300) : # To remove large objects
+            continue
+
+        # For chocolates glued together
+        if (isolated_img.shape[0] > 230 or isolated_img.shape[1] > 230) : # To remove large objects
+            # Large object: apply Watershed to split it
+            region_crop = isolated_mask[minr:maxr, minc:maxc].astype(np.uint8)
+            chocolate_crop = segmented_image[minr:maxr, minc:maxc]
+
+            # --- WATERSHED START ---
+            # Create markers using distance transform
+            dist = cv2.distanceTransform(region_crop * 255, cv2.DIST_L2, 5)
+            _, sure_fg = cv2.threshold(dist, 0.4 * dist.max(), 255, 0)
+            sure_fg = np.uint8(sure_fg)
+            unknown = cv2.subtract(region_crop * 255, sure_fg)
+
+            # Marker labelling
+            _, markers = cv2.connectedComponents(sure_fg)
+            markers = markers + 1
+            markers[unknown == 255] = 0
+
+            # Watershed
+            chocolate_crop_color = chocolate_crop.copy()
+            markers = cv2.watershed(chocolate_crop_color, markers)
+
+            # Loop over each separated region (label > 1)
+            isolated_imgs = []
+            for label_val in np.unique(markers):
+                if label_val <= 1:
+                    continue  # Skip background and unknown
+
+                mask_ws = (markers == label_val).astype(np.uint8)
+                if np.sum(mask_ws) < 500:
+                    continue  # Skip tiny blobs
+
+                # Create masked chocolate
+                masked_choco = np.zeros_like(chocolate_crop_color)
+                for c in range(3):
+                    masked_choco[..., c] = chocolate_crop_color[..., c] * mask_ws
+
+                isolated_imgs.append(masked_choco)
+            # --- WATERSHED END ---
+            for isolated in isolated_imgs:
+                choc_class = choc_classifier(isolated)
+
+                if choc_class == "Jelly White":
+                    chocolate_count[0] += 1
+                if choc_class == "Jelly Milk":
+                    chocolate_count[1] += 1
+                if choc_class == "Jelly Black":
+                    chocolate_count[2] += 1
+                if choc_class == "Amandina":
+                    chocolate_count[3] += 1
+                if choc_class == "Crème Brulée":
+                    chocolate_count[4] += 1
+                if choc_class == "Triangolo":
+                    chocolate_count[5] += 1
+                if choc_class == "Tentation noir":
+                    chocolate_count[6] += 1
+                if choc_class == "Comtesse":
+                    chocolate_count[7] += 1
+                if choc_class == "Noblesse":
+                    chocolate_count[8] += 1
+                if choc_class == "Noir authentique":
+                    chocolate_count[9] += 1
+                if choc_class == "Passion au lait":
+                    chocolate_count[10] += 1
+                if choc_class == "Arabia":
+                    chocolate_count[11] += 1
+                if choc_class == "Straciatella":
+                    chocolate_count[12] += 1
+
+                print(choc_class)  
+            continue
+
+        if isolated_img.shape[0] < 95 and isolated_img.shape[1] < 95 : # To remove small objects such as black squares (hard to pinpoint with remove small objects)
+            continue
+
+        # Classify the chocolate
+        choc_class = choc_classifier(isolated_img)
+
+        if choc_class == "Jelly White":
+            chocolate_count[0] += 1
+        if choc_class == "Jelly Milk":
+            chocolate_count[1] += 1
+        if choc_class == "Jelly Black":
+            chocolate_count[2] += 1
+        if choc_class == "Amandina":
+            chocolate_count[3] += 1
+        if choc_class == "Crème Brulée":
+            chocolate_count[4] += 1
+        if choc_class == "Triangolo":
+            chocolate_count[5] += 1
+        if choc_class == "Tentation noir":
+            chocolate_count[6] += 1
+        if choc_class == "Comtesse":
+            chocolate_count[7] += 1
+        if choc_class == "Noblesse":
+            chocolate_count[8] += 1
+        if choc_class == "Noir authentique":
+            chocolate_count[9] += 1
+        if choc_class == "Passion au lait":
+            chocolate_count[10] += 1
+        if choc_class == "Arabia":
+            chocolate_count[11] += 1
+        if choc_class == "Straciatella":
+            chocolate_count[12] += 1
+
+        print(choc_class)
 
     
 
