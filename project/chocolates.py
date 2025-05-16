@@ -41,9 +41,9 @@ chocolate_colors = [
     TRIANGOLO_COLOR
 ]"""
 
-chocolate_colors = pd.read_csv('C:/Users/timur/OneDrive/Documents/GitHub/iapr_group_50/project/hs_samples/concatenated.csv')[['H', 'S']]
+chocolate_colors = pd.read_csv('C:/Users/timur/OneDrive/Documents/GitHub/iapr_group_50/project/hsv_samples/concatenated.csv')[['H', 'S', 'V']]
 
-def weighted_distance_mask(img, threshold=30, weights=(1.0, 1.0, 0.5)):
+def chocolate_masking_weighted(img, threshold=30, weights=(1.0, 1.0, 0.5)):
     """
     Crée un masque avec une distance HSV pondérée.
 
@@ -62,14 +62,16 @@ def weighted_distance_mask(img, threshold=30, weights=(1.0, 1.0, 0.5)):
     # Étendre les poids pour faire un broadcast
     w = np.array(weights).reshape((1, 1, 3))
 
-    for mean in chocolate_colors:
-        diff = hsv_img - mean  # shape (H, W, 3)
+    for index, row in chocolate_colors.iloc[::10000].iterrows():
+        diff = hsv_img - np.array(row, dtype=np.float32)  # shape (H, W, 3)
         weighted_diff = diff ** 2 * w
         dist = np.sqrt(np.sum(weighted_diff, axis=2))
         mask = (dist < threshold).astype(np.uint8) * 255
         mask_total = cv2.bitwise_or(mask_total, mask)
+
+    result = cv2.bitwise_and(img, img, mask=mask_total)
     
-    return mask_total
+    return result
 
 def chocolate_masking(img,threshold=50):
     """
