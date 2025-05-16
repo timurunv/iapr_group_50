@@ -50,10 +50,12 @@ def chocolate_masking(img,threshold=50):
         numpy.ndarray: Masked image (HSV) with chocolate colors.
     """
     hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV_FULL)
+    hs = hsv[:, :, :2]  # Use only Hue and Saturation
     mask_total = np.zeros(hsv.shape[:2], dtype=np.uint8)
 
     for color in chocolate_colors:
-        diff = hsv.astype(np.float32) - color
+        target_hs = np.array(color[:2], dtype=np.float32)  # Only H and S
+        diff = hs - target_hs
         distance = np.linalg.norm(diff, axis=2)
 
         mask = (distance < threshold).astype(np.uint8) * 255
