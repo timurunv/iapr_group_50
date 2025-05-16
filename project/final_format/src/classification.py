@@ -146,7 +146,7 @@ def cluster1_2class(chocolate) :
             x1, y1, x2, y2 = line[0]
             cv2.line(line_img, (x1, y1), (x2, y2), (0, 0, 255), 2)
     stripe_count = len(lines) if lines is not None else 0
-    print(stripe_count)
+    #print(stripe_count)
     if stripe_count <= 18 and stripe_count >= 8 :
         return "Straciatella"
 
@@ -167,7 +167,7 @@ def cluster1_2class(chocolate) :
     # [72.46, 75.92, 95.81, 47.73, 81.07, 96.69, 0.7851, 0.8144, 32.16]
 
     #X_rgb_hsv_text_rect_cont[:, -1] *= 0.1 
-    y = np.array([1, 2, 3, 4, 6, 7]) # ,5
+    y = np.array([1, 2, 3, 4, 6, 7]) # 1,5
 
     combined = np.hstack((mean_color_rgb, mean_hsv, texture, rectangularity, rms_contrast))
     #print(combined)
@@ -431,7 +431,7 @@ def classification(segmented_image) :
                 if choc_class == "Straciatella":
                     chocolate_count[12] += 1
 
-                print(choc_class)  
+                #print(choc_class)  
             continue
 
         if isolated_img.shape[0] < 95 and isolated_img.shape[1] < 95 : # To remove small objects such as black squares (hard to pinpoint with remove small objects)
@@ -467,7 +467,7 @@ def classification(segmented_image) :
         if choc_class == "Straciatella":
             chocolate_count[12] += 1
 
-        print(choc_class)
+        #print(choc_class)
 
     
 
