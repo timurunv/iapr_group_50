@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import cv2
 
-"""#Constants file with the mean hsv values for each chocolate
+#Constants file with the mean hsv values for each chocolate
 AMANDINA_COLOR = (np.float64(58.40766694146743), np.float64(66.15457543281121), np.float64(152.40210222588624))
 ARABIA_COLOR = (np.float64(38.59955068800899), np.float64(112.08010390339793), np.float64(94.69931199101376))
 COMTESSE_COLOR = (np.float64(52.0501003440367), np.float64(27.74534116972477), np.float64(201.78411697247705))
@@ -21,7 +21,7 @@ STRACCIATELA_COLOR = (np.float64(67.05495676149893), np.float64(76.4590174207294
 TENTATION_NOIR_COLOR = (np.float64(75.19297608234938), np.float64(81.41132303966091), np.float64(89.20629730547986))
 TRIANGOLO_COLOR = (np.float64(41.55256381549485), np.float64(96.41519256605463), np.float64(114.78549037169726))
 
-chocolate_colors = [
+chocolate_mean_colors = [
     AMANDINA_COLOR,
     ARABIA_COLOR,
     COMTESSE_COLOR,
@@ -39,7 +39,7 @@ chocolate_colors = [
     STRACCIATELA_COLOR,
     TENTATION_NOIR_COLOR,
     TRIANGOLO_COLOR
-]"""
+]
 
 chocolate_colors = pd.read_csv('C:/Users/timur/OneDrive/Documents/GitHub/iapr_group_50/project/hsv_samples/concatenated.csv')[['H', 'S', 'V']]
 
@@ -63,6 +63,36 @@ def chocolate_masking_weighted(img, threshold=30, weights=(1.0, 1.0, 0.0)):
     w = np.array(weights).reshape((1, 1, 3))
 
     for index, row in chocolate_colors.iloc[::5000].iterrows():
+        diff = hsv_img - np.array(row, dtype=np.float32)  # shape (H, W, 3)
+        weighted_diff = diff ** 2 * w
+        dist = np.sqrt(np.sum(weighted_diff, axis=2))
+        mask = (dist < threshold).astype(np.uint8) * 255
+        mask_total = cv2.bitwise_or(mask_total, mask)
+
+    result = cv2.bitwise_and(img, img, mask=mask_total)
+    
+    return result
+
+def chocolate_mean_masking_weighted(img, threshold=30, weights=(1.0, 1.0, 0.0)):
+    """
+    Crée un masque avec une distance HSV pondérée.
+
+    Args:
+        img (np.ndarray): Image RGB.
+        threshold (float): Seuil sur la distance pondérée.
+        weights (tuple): Poids (H, S, V) pour la distance.
+
+    Returns:
+        np.ndarray: Masque binaire (uint8).
+    """
+    hsv_img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV_FULL).astype(np.float32)
+    
+    mask_total = np.zeros(hsv_img.shape[:2], dtype=np.uint8)
+    
+    # Étendre les poids pour faire un broadcast
+    w = np.array(weights).reshape((1, 1, 3))
+
+    for row in chocolate_mean_colors:
         diff = hsv_img - np.array(row, dtype=np.float32)  # shape (H, W, 3)
         weighted_diff = diff ** 2 * w
         dist = np.sqrt(np.sum(weighted_diff, axis=2))
