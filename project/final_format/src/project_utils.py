@@ -8,10 +8,15 @@ def load_images(path_ref):
     n_images = len(jpg_files)
 
     loaded_images = []
+    images_ref = []
 
     for i in range (n_images):
         img_path = os.path.join(path_ref, jpg_files[i])
         img = mpimg.imread(img_path)
-        loaded_images.append(img)
+        name = os.path.splitext(jpg_files[i])[0] 
+        clean_name = name.lstrip('L')
 
-    return loaded_images
+        loaded_images.append(img)
+        images_ref.append(clean_name)
+
+    return loaded_images,images_ref
