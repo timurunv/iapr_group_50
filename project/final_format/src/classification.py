@@ -173,7 +173,7 @@ def cluster1_2class(chocolate) :
     # Normalization (sometimes help recognize, sometimes classifies wrongly when rightly classified without norm)
     from sklearn.preprocessing import StandardScaler
     scaler = StandardScaler()
-    weights = np.array([1, 1, 1, 1, 0.8, 0.8, 0.6, 0.6, 0.3])
+    weights = np.array([1, 1, 1, 1, 0.8, 0.8, 0.8, 0.8, 0.5])
     X_scaled = scaler.fit_transform(X_rgb_hsv_text_rect_cont) * weights
     combined_scaled = scaler.transform([combined]) * weights
 
@@ -253,7 +253,6 @@ def cluster2_class(chocolate) :
         [160.69, 180.14, 187.04, 24.54, 36.21, 187.2, 34.51],   # class 3
     ])
     
-    #X_rgb_hsv_text_rect_cont[:, -1] *= 0.1 
     y = np.array([1, 2, 3])
 
     combined = np.hstack((mean_color_rgb, mean_hsv, rms_contrast))
@@ -289,9 +288,7 @@ def cluster2_class(chocolate) :
 def choc_classifier(chocolate) :
     choc_class = ''
 
-    # === STEP 1: Color Filtering ===
     img = np.array(chocolate)
-    
     # Mask out black background
     mask = np.any(img > 10, axis=2)  # Non-black pixels
     if np.sum(mask) == 0:
@@ -309,7 +306,6 @@ def choc_classifier(chocolate) :
     magnet5 = np.array([44.58164251, 55.60676329, 82.78636608])
     magnet6 = np.array([41.67514188, 60.42372304, 99.57775255])
     
-
     # Check distance to pure colors
     threshold = 10
     if (np.linalg.norm(avg_color - box1) < threshold or
@@ -327,7 +323,6 @@ def choc_classifier(chocolate) :
     img = np.array(chocolate)
     img = np.mean(img, axis=2)
     binary = img > 0
-    #print(binary.shape)
     contours = find_contours(binary, level=0.5)
     if contours:
         choc_contour = np.fliplr(max(contours, key=lambda x: x.shape[0]))
@@ -358,7 +353,6 @@ def choc_classifier(chocolate) :
     if cluster == 2 :
         choc_class = cluster2_class(chocolate)
 
-    
     return choc_class
 
 def classification(segmented_image, original_image) :
@@ -404,7 +398,7 @@ def classification(segmented_image, original_image) :
 
         if (isolated_img.shape[0] < 2 or isolated_img.shape[1] < 2) : 
             continue
-
+        
         # Regions too large
         if (isolated_img.shape[0] > 350 or isolated_img.shape[1] > 350) : 
             continue
@@ -436,11 +430,11 @@ def classification(segmented_image, original_image) :
             for label_val in np.unique(markers):
                 if label_val <= 1:
                     continue  # Skip background and unknown
-
+                
                 mask_ws = (markers == label_val).astype(np.uint8)
                 if np.sum(mask_ws) < 500:
                     continue  # Skip tiny blobs
-
+                
                 # Create masked chocolate
                 masked_choco = np.zeros_like(chocolate_crop_color)
                 for c in range(3):
@@ -486,7 +480,7 @@ def classification(segmented_image, original_image) :
         # Regions too small
         if isolated_img.shape[0] < 95 and isolated_img.shape[1] < 95 :
             continue
-
+        
         # Classify the chocolate
         choc_class = choc_classifier(isolated_img)
 
@@ -518,6 +512,5 @@ def classification(segmented_image, original_image) :
             chocolate_count[12] += 1
 
         print(choc_class)
-
 
     return chocolate_count
