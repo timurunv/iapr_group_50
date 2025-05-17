@@ -289,6 +289,39 @@ def cluster2_class(chocolate) :
 def choc_classifier(chocolate) :
     choc_class = ''
 
+    # === STEP 1: Color Filtering ===
+    img = np.array(chocolate)
+    
+    # Mask out black background
+    mask = np.any(img > 10, axis=2)  # Non-black pixels
+    if np.sum(mask) == 0:
+        return 'Ignored: All black'
+
+    avg_color = np.mean(img[mask], axis=0)
+
+    # Colors to reject
+    box1 = np.array([38.08589697, 48.86284786, 73.21062837])
+    box2 = np.array([50.47642587, 57.81508881, 64.93243105])
+    magnet1 = np.array([44.36397149, 49.19480626, 52.67076268])
+    magnet2 = np.array([87.38750211, 119.24561898, 110.90246239])
+    magnet3 = np.array([52.07047985, 61.89227378, 74.86243147])
+    magnet4 = np.array([44.84981227, 152.63533963, 109.03447491])
+    magnet5 = np.array([44.58164251, 55.60676329, 82.78636608])
+    magnet6 = np.array([41.67514188, 60.42372304, 99.57775255])
+    
+
+    # Check distance to pure colors
+    threshold = 10
+    if (np.linalg.norm(avg_color - box1) < threshold or
+        np.linalg.norm(avg_color - box2) < threshold or
+        np.linalg.norm(avg_color - magnet1) < threshold or
+        np.linalg.norm(avg_color - magnet2) < threshold or
+        np.linalg.norm(avg_color - magnet3) < threshold or
+        np.linalg.norm(avg_color - magnet4) < threshold or
+        np.linalg.norm(avg_color - magnet5) < threshold or
+        np.linalg.norm(avg_color - magnet6) < threshold):
+        return 'Ignored: Color too close to black boxes or magnets'
+    
     # Compute the contours of the patterns and of the chocolate
     choc_contour = []
     img = np.array(chocolate)
@@ -302,6 +335,7 @@ def choc_classifier(chocolate) :
     choc_contour = choc_contour.astype(np.float32)
     ratio = cv2.contourArea(choc_contour)/cv2.arcLength(choc_contour, closed=True)
     compacity = cv2.contourArea(choc_contour)**2/cv2.arcLength(choc_contour, closed=True)
+    area = cv2.contourArea(choc_contour)
     cluster = 0
 
     if compacity > 350000 :
@@ -309,7 +343,6 @@ def choc_classifier(chocolate) :
     else :
         cluster = 2
 
-    
     if ratio > 33.5 and cluster == 1:
         cluster = 11
     if ratio <= 33.5 and cluster == 1:
@@ -328,13 +361,17 @@ def choc_classifier(chocolate) :
     
     return choc_class
 
-def classification(segmented_image) :
+def classification(segmented_image, original_image) :
     # Jelly White, Jelly Milk, Jelly Black, Amandina, Crème brulée, Triangolo, Tentation noir, Comtesse, Noblesse, Noir authentique, Passion au lait, Arabia, Stracciatella
     chocolate_count = [0,0,0,0,0,0,0,0,0,0,0,0,0]
 
     # Threshold the result to create a binary mask
     masked_img = np.mean(segmented_image, axis=2) > 0
-    masked_img = remove_small_objects(masked_img, min_size=15000)
+    masked_img = remove_small_objects(masked_img, min_size=5000)
+
+    # Keep the full original image for later masking
+    img_ref = original_image.copy()
+    img_ref = cv2.resize(img_ref, (1600,1067))
     
     # Label connected components
     labeled_mask = label(masked_img)
@@ -361,27 +398,27 @@ def classification(segmented_image) :
         contours = find_contours(binary, level=0.5)
         if contours:
             choc_contour = np.fliplr(max(contours, key=lambda x: x.shape[0]))
+        # Compute the ratio perimeter vs area of the chocolate and assign the cluster
         choc_contour = choc_contour.astype(np.float32)
         area = cv2.contourArea(choc_contour)
 
-        # Invalid shape
         if (isolated_img.shape[0] < 2 or isolated_img.shape[1] < 2) : 
             continue
-    
-        # Regions too large
-        if (isolated_img.shape[0] > 400 or isolated_img.shape[1] > 400) : 
-            continue
 
+        # Regions too large
+        if (isolated_img.shape[0] > 350 or isolated_img.shape[1] > 350) : 
+            continue
+        
         # For chocolates glued together
-        if (isolated_img.shape[0] > 230 or isolated_img.shape[1] > 230 or area > 20000) : 
+        if (isolated_img.shape[0] > 240 or isolated_img.shape[1] > 240 or area > 20500) : 
             # Large object: apply Watershed to split it
             region_crop = isolated_mask[minr:maxr, minc:maxc].astype(np.uint8)
-            chocolate_crop = segmented_image[minr:maxr, minc:maxc]
+            chocolate_crop = img_ref[minr:maxr, minc:maxc]
 
             # --- WATERSHED START ---
             # Create markers using distance transform
             dist = cv2.distanceTransform(region_crop * 255, cv2.DIST_L2, 5)
-            _, sure_fg = cv2.threshold(dist, 0.9 * dist.max(), 255, 0)
+            _, sure_fg = cv2.threshold(dist, 0.6 * dist.max(), 255, 0)
             sure_fg = np.uint8(sure_fg)
             unknown = cv2.subtract(region_crop * 255, sure_fg)
 
@@ -413,6 +450,7 @@ def classification(segmented_image) :
             # --- WATERSHED END ---
             
             for isolated in isolated_imgs:
+                
                 choc_class = choc_classifier(isolated)
 
                 if choc_class == "Jelly White":
@@ -444,7 +482,7 @@ def classification(segmented_image) :
 
                 print(choc_class)  
             continue
-
+        
         # Regions too small
         if isolated_img.shape[0] < 95 and isolated_img.shape[1] < 95 :
             continue
@@ -481,6 +519,5 @@ def classification(segmented_image) :
 
         print(choc_class)
 
-    
 
     return chocolate_count
