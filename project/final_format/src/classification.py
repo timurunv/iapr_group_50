@@ -145,19 +145,20 @@ def cluster1_2class(chocolate) :
             cv2.line(line_img, (x1, y1), (x2, y2), (0, 0, 255), 2)
     stripe_count = len(lines) if lines is not None else 0
 
-    if stripe_count <= 20 and stripe_count >= 8 :
-        return "Straciatella"
-
+    # if stripe_count <= 20 and stripe_count >= 7 :
+    #     return "Straciatella"
+    # if stripe_count > 20 :
+    #     return "Amandina"
 
     # Reference
     X_rgb_hsv_text_rect_cont = np.array([ 
-        [116.85, 133.55, 153.15, 40.87, 69.17, 153.67, 0.93, 0.75, 43.92],      # class 1
-        [51.69, 62.39, 89.09, 26.53, 118.61, 89.53, 0.7781, 0.7882, 34.08],     # class 2
-        [181.48, 198.41, 202.34, 32.86, 29.1, 203.02, 0.8277, 0.7769, 27.39],   # class 3
-        [65.061, 89.55, 129.29, 17.28, 127.29, 129.40, 0.7771, 0.7616, 27.15],  # class 4
-        # [72.46, 75.92, 95.81, 47.73, 81.07, 96.69, 0.7851, 0.8144, 32.16],      # class 5
-        [65.9, 68.21, 87.37, 51.97, 80.02, 87.68, 0.8273, 0.7967, 36.41],       # class 6
-        [70.04, 78.85, 111.07, 27.55, 102.75, 111.14, 0.7792, 0.6865, 28.62],   # class 7 
+        [116.85, 133.55, 153.15, 40.87, 69.17, 153.67, 0.93, 0.75, 43.92, 33],      # class 1
+        [51.69, 62.39, 89.09, 26.53, 118.61, 89.53, 0.7781, 0.7882, 34.08, 1],     # class 2
+        [181.48, 198.41, 202.34, 32.86, 29.1, 203.02, 0.8277, 0.7769, 27.39, 0],   # class 3
+        [65.061, 89.55, 129.29, 17.28, 127.29, 129.40, 0.7771, 0.7616, 27.15, 0],  # class 4
+        [72.46, 75.92, 95.81, 47.73, 81.07, 96.69, 0.7851, 0.8144, 32.16, 15],      # class 5
+        [65.9, 68.21, 87.37, 51.97, 80.02, 87.68, 0.8273, 0.7967, 36.41, 2],       # class 6
+        [70.04, 78.85, 111.07, 27.55, 102.75, 111.14, 0.7792, 0.6865, 28.62, 6],   # class 7 
     ])
     
     # [51.69, 62.39, 89.09, 26.53, 118.61, 89.53, 0.7781, 0.7882, 34.08]
@@ -165,15 +166,15 @@ def cluster1_2class(chocolate) :
     # [72.46, 75.92, 95.81, 47.73, 81.07, 96.69, 0.7851, 0.8144, 32.16]
 
     #X_rgb_hsv_text_rect_cont[:, -1] *= 0.1 
-    y = np.array([1, 2, 3, 4, 6, 7]) # ,5
+    y = np.array([1, 2, 3, 4, 5, 6, 7]) 
 
-    combined = np.hstack((mean_color_rgb, mean_hsv, texture, rectangularity, rms_contrast))
+    combined = np.hstack((mean_color_rgb, mean_hsv, texture, rectangularity, rms_contrast, stripe_count))
     #print(combined)
 
     # Normalization (sometimes help recognize, sometimes classifies wrongly when rightly classified without norm)
     from sklearn.preprocessing import StandardScaler
     scaler = StandardScaler()
-    weights = np.array([1, 1, 1, 1, 0.8, 0.8, 0.8, 0.8, 0.5])
+    weights = np.array([0.8, 0.8, 0.8, 0.8, 0.7, 0.7, 0.5, 0.5, 0.5, 1])
     X_scaled = scaler.fit_transform(X_rgb_hsv_text_rect_cont) * weights
     combined_scaled = scaler.transform([combined]) * weights
 
@@ -198,8 +199,8 @@ def cluster1_2class(chocolate) :
         return "Comtesse"
     if predicted_class == 4 :
         return "Noblesse"
-    # if predicted_class == 5 :
-    #     return "Straciatella"
+    if predicted_class == 5 :
+        return "Straciatella"
     if predicted_class == 6 :
         return "Tentation noir"
     if predicted_class == 7 :
@@ -332,15 +333,16 @@ def choc_classifier(chocolate) :
     compacity = cv2.contourArea(choc_contour)**2/cv2.arcLength(choc_contour, closed=True)
     area = cv2.contourArea(choc_contour)
     cluster = 0
-
-    if compacity > 350000 :
+    # print(f'Ratio = {ratio}')
+    # print(f'Compacity = {compacity}')
+    if compacity > 310000 :
         cluster = 1
     else :
         cluster = 2
 
-    if ratio > 33.5 and cluster == 1:
+    if ratio > 33.4 and cluster == 1:
         cluster = 11
-    if ratio <= 33.5 and cluster == 1:
+    if ratio <= 33.4 and cluster == 1:
         cluster = 12
     
 
