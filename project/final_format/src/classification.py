@@ -388,6 +388,13 @@ def classification(segmented_image, original_image) :
         isolated_img = np.zeros_like(img_crop)
         isolated_img[mask_crop] = img_crop[mask_crop]
 
+        # Apply opening to smoothen the contour
+        footprint = disk(10)
+        smoothed_mask = opening(mask_crop, footprint=footprint)
+        isolated_img = np.zeros_like(img_crop)
+        for c in range(3):
+            isolated_img[..., c] = img_crop[..., c] * smoothed_mask
+
         # Area
         choc_contour = []
         binary = isolated_mask > 0
