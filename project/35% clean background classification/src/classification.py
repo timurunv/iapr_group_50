@@ -48,6 +48,7 @@ def cluster1_1class(cropped_choc) :
     if choc_contour.ndim == 2:
         choc_contour = choc_contour.astype(np.int32).reshape(-1, 1, 2)
 
+    # RGB
     mask = np.zeros(cropped_choc.shape[:2], dtype=np.uint8)
     # Fill the contour on the mask
     cv2.drawContours(mask, [choc_contour], -1, color=255, thickness=-1)
@@ -56,16 +57,64 @@ def cluster1_1class(cropped_choc) :
     # Convert BGR to RGB if needed
     mean_color_rgb = mean_color[:3][::-1]
 
+    # HSV
+    img = np.array(cropped_choc)
+    mask = np.zeros(img.shape[:2], dtype=np.uint8)
+    cv2.drawContours(mask, [choc_contour], -1, color=255, thickness=-1)
+    hsv_img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+    mean_hsv = cv2.mean(hsv_img, mask=mask)  # Returns (H, S, V, alpha)
+    mean_hsv = mean_hsv[:3]  # Remove alpha
+
+    # Contrast
+    img = np.array(cropped_choc)
+    mask = np.zeros(img.shape[:2], dtype=np.uint8)
+    cv2.drawContours(mask, [choc_contour], -1, color=255, thickness=-1)
+    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    masked = cv2.bitwise_and(gray, gray, mask=mask)
+    mean_intensity = np.mean(masked[mask > 0])
+    rms_contrast = np.sqrt(np.mean((masked[mask > 0] - mean_intensity) ** 2))
+
+    # Stripe detection
+    gray = cv2.cvtColor(cropped_choc, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    edges = cv2.Canny(blurred, threshold1=50, threshold2=150, apertureSize=3)
+    lines = cv2.HoughLinesP(edges, rho=1, theta=np.pi/180, threshold=50,
+                            minLineLength=30, maxLineGap=10)
+    line_img = cropped_choc.copy()
+    if lines is not None:
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            cv2.line(line_img, (x1, y1), (x2, y2), (0, 0, 255), 2)
+    stripe_count = len(lines) if lines is not None else 0
+
+
     X = np.array([
-        [117.56, 141.1, 167.42],  # class 1
-        [60.19, 69.41, 97.44],     # class 2
-        [83.05, 95.29, 120.49]
+        [118.31, 140.1, 164.43], #, 27.86, 74.94, 165.25, 35.71, 14],  # class 1
+        [66.55, 75.28, 100.93], #, 30.93, 99.52, 101.26, 35.41, 0],     # class 2
+        [86.66, 98.49, 122.16] #, 18.59, 81.83, 122.23, 38.51, 5]
     ])
     y = np.array([1, 2, 3])
-    knn = KNeighborsClassifier(n_neighbors=1)
-    knn.fit(X, y)
 
-    predicted_class = knn.predict([mean_color_rgb])
+    combined = np.hstack((mean_color_rgb)) #, mean_hsv, rms_contrast, stripe_count))
+
+    # Normalization (sometimes help recognize, sometimes classifies wrongly when rightly classified without norm)
+    from sklearn.preprocessing import StandardScaler
+    scaler = StandardScaler()
+    weights = np.array([1, 1, 1, 0.8, 0.8, 0.8, 0.6, 0.8])
+    X_scaled = scaler.fit_transform(X) #* weights
+    combined_scaled = scaler.transform([combined]) #* weights
+
+    # Mahalanobis distance
+    """ from scipy.spatial.distance import mahalanobis
+    V = np.cov(X_scaled, rowvar=False)
+    VI = np.linalg.inv(V) """
+
+    # KNN
+    knn = KNeighborsClassifier(n_neighbors=1) # , metric='mahalanobis', metric_params={'V': V}
+    knn.fit(X_scaled, y)
+    new_sample = np.array(combined_scaled)
+    predicted_class = knn.predict(new_sample)
+    
     if predicted_class == 1 :
         return "Crème Brulée"
     if predicted_class == 2 :
@@ -174,8 +223,8 @@ def cluster1_2class(chocolate) :
     from sklearn.preprocessing import StandardScaler
     scaler = StandardScaler()
     weights = np.array([1, 1, 1, 1, 0.8, 0.8, 0.6, 0.6, 0.3])
-    X_scaled = scaler.fit_transform(X_rgb_hsv_text_rect_cont) * weights
-    combined_scaled = scaler.transform([combined]) * weights
+    X_scaled = scaler.fit_transform(X_rgb_hsv_text_rect_cont) #* weights
+    combined_scaled = scaler.transform([combined]) #* weights
 
     # Mahalanobis distance
     """ from scipy.spatial.distance import mahalanobis
@@ -262,8 +311,8 @@ def cluster2_class(chocolate) :
     from sklearn.preprocessing import StandardScaler
     scaler = StandardScaler()
     weights = np.array([1, 1, 1, 1, 1, 1, 0.3]) 
-    X_scaled = scaler.fit_transform(X_rgb_hsv_cont) * weights
-    combined_scaled = scaler.transform([combined]) * weights
+    X_scaled = scaler.fit_transform(X_rgb_hsv_cont) #* weights
+    combined_scaled = scaler.transform([combined]) #* weights
 
     # Mahalanobis distance
     """ from scipy.spatial.distance import mahalanobis
@@ -289,6 +338,36 @@ def cluster2_class(chocolate) :
 def choc_classifier(chocolate) :
     choc_class = ''
 
+    img = np.array(chocolate)
+    # Mask out black background
+    mask = np.any(img > 10, axis=2)  # Non-black pixels
+    if np.sum(mask) == 0:
+        return 'Ignored: All black'
+
+    avg_color = np.mean(img[mask], axis=0)
+
+    # Colors to reject
+    box1 = np.array([38.08589697, 48.86284786, 73.21062837])
+    box2 = np.array([50.47642587, 57.81508881, 64.93243105])
+    magnet1 = np.array([44.36397149, 49.19480626, 52.67076268])
+    magnet2 = np.array([87.38750211, 119.24561898, 110.90246239])
+    magnet3 = np.array([52.07047985, 61.89227378, 74.86243147])
+    magnet4 = np.array([44.84981227, 152.63533963, 109.03447491])
+    magnet5 = np.array([44.58164251, 55.60676329, 82.78636608])
+    magnet6 = np.array([41.67514188, 60.42372304, 99.57775255])
+    
+    # Check distance to pure colors
+    threshold = 10
+    if (np.linalg.norm(avg_color - box1) < threshold or
+        np.linalg.norm(avg_color - box2) < threshold or
+        np.linalg.norm(avg_color - magnet1) < threshold or
+        np.linalg.norm(avg_color - magnet2) < threshold or
+        np.linalg.norm(avg_color - magnet3) < threshold or
+        np.linalg.norm(avg_color - magnet4) < threshold or
+        np.linalg.norm(avg_color - magnet5) < threshold or
+        np.linalg.norm(avg_color - magnet6) < threshold):
+        return 'Ignored: Color too close to black boxes or magnets'
+    
     # Compute the contours of the patterns and of the chocolate
     choc_contour = []
     img = np.array(chocolate)
@@ -304,15 +383,15 @@ def choc_classifier(chocolate) :
     compacity = cv2.contourArea(choc_contour)**2/cv2.arcLength(choc_contour, closed=True)
     cluster = 0
 
-    if compacity > 350000 :
+    if compacity > 310000 : #350000
         cluster = 1
     else :
         cluster = 2
 
     
-    if ratio > 33.5 and cluster == 1:
+    if ratio > 33.4 and cluster == 1:
         cluster = 11
-    if ratio <= 33.5 and cluster == 1:
+    if ratio <= 33.4 and cluster == 1:
         cluster = 12
     
 
@@ -355,6 +434,13 @@ def classification(segmented_image) :
         isolated_img = np.zeros_like(img_crop)
         isolated_img[mask_crop] = img_crop[mask_crop]
 
+        # Apply opening to smoothen the contour
+        footprint = disk(15)
+        smoothed_mask = opening(mask_crop, footprint=footprint)
+        isolated_img = np.zeros_like(img_crop)
+        for c in range(3):
+            isolated_img[..., c] = img_crop[..., c] * smoothed_mask
+
         # Area
         choc_contour = []
         binary = isolated_mask > 0
@@ -370,7 +456,7 @@ def classification(segmented_image) :
             continue
     
         # Regions too large
-        if (isolated_img.shape[0] > 400 or isolated_img.shape[1] > 400) : 
+        if (isolated_img.shape[0] > 350 or isolated_img.shape[1] > 350) : 
             continue
 
         # For chocolates glued together
