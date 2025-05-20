@@ -87,21 +87,30 @@ def cluster1_1class(cropped_choc) :
             cv2.line(line_img, (x1, y1), (x2, y2), (0, 0, 255), 2)
     stripe_count = len(lines) if lines is not None else 0
 
+    # Perimeter 
+    perimeter = cv2.arcLength(choc_contour, closed=True)
 
-    X = np.array([
-        [118.31, 140.1, 164.43], #, 27.86, 74.94, 165.25, 35.71, 14],  # class 1
-        [66.55, 75.28, 100.93], #, 30.93, 99.52, 101.26, 35.41, 0],     # class 2
-        [86.66, 98.49, 122.16] #, 18.59, 81.83, 122.23, 38.51, 5]
+    # Area
+    area = cv2.contourArea(choc_contour)
+
+    # Circularity
+    circularity = 4*np.pi * area / perimeter**2
+
+    X_rgb_peri_area_circu = np.array([
+        [118.15, 140.1, 164.54, 566.9, 18405.0, 0.7196], #, 27.86, 74.94, 165.25, 35.71, 14],  # class 1
+        [63.66, 72.41, 98.92, 549.3, 17558.0, 0.7313], #, 30.93, 99.52, 101.26, 35.41, 0],     # class 2
+        [86.12, 97.97, 121.84, 628.8, 20334.0, 0.6461], #, 18.59, 81.83, 122.23, 38.51, 5]
+        [72.52, 81.16, 111.48, 584.0, 17327.5, 0.6384]
     ])
-    y = np.array([1, 2, 3])
+    y = np.array([1, 2, 3, 4])
 
-    combined = np.hstack((mean_color_rgb)) #, mean_hsv, rms_contrast, stripe_count))
+    combined = np.hstack((mean_color_rgb, perimeter, area, circularity)) #, mean_hsv, rms_contrast, stripe_count))
 
     # Normalization (sometimes help recognize, sometimes classifies wrongly when rightly classified without norm)
     from sklearn.preprocessing import StandardScaler
     scaler = StandardScaler()
-    weights = np.array([1, 1, 1, 0.8, 0.8, 0.8, 0.6, 0.8])
-    X_scaled = scaler.fit_transform(X) #* weights
+    weights = np.array([0.8, 0.8, 0.8, 1, 1])
+    X_scaled = scaler.fit_transform(X_rgb_peri_area_circu) #* weights
     combined_scaled = scaler.transform([combined]) #* weights
 
     # Mahalanobis distance
@@ -121,6 +130,8 @@ def cluster1_1class(cropped_choc) :
         return "Noir authentique"
     if predicted_class == 3 :
         return "Passion au lait"
+    if predicted_class == 4 :
+        return "Triangolo"
     
     return "Unable to determine"
 
@@ -204,16 +215,11 @@ def cluster1_2class(chocolate) :
         [51.69, 62.39, 89.09, 26.53, 118.61, 89.53, 0.7781, 0.7882, 34.08],     # class 2
         [181.48, 198.41, 202.34, 32.86, 29.1, 203.02, 0.8277, 0.7769, 27.39],   # class 3
         [65.061, 89.55, 129.29, 17.28, 127.29, 129.40, 0.7771, 0.7616, 27.15],  # class 4
-        # [72.46, 75.92, 95.81, 47.73, 81.07, 96.69, 0.7851, 0.8144, 32.16],      # class 5
+        #[72.46, 75.92, 95.81, 47.73, 81.07, 96.69, 0.7851, 0.8144, 32.16],     # class 5
         [65.9, 68.21, 87.37, 51.97, 80.02, 87.68, 0.8273, 0.7967, 36.41],       # class 6
         [70.04, 78.85, 111.07, 27.55, 102.75, 111.14, 0.7792, 0.6865, 28.62],   # class 7 
     ])
     
-    # [51.69, 62.39, 89.09, 26.53, 118.61, 89.53, 0.7781, 0.7882, 34.08]
-    # [70.81  78.07  102.18 44.20  95.83  103.51  0.796   0.791  42.96]
-    # [72.46, 75.92, 95.81, 47.73, 81.07, 96.69, 0.7851, 0.8144, 32.16]
-
-    #X_rgb_hsv_text_rect_cont[:, -1] *= 0.1 
     y = np.array([1, 2, 3, 4, 6, 7]) # ,5
 
     combined = np.hstack((mean_color_rgb, mean_hsv, texture, rectangularity, rms_contrast))
@@ -311,8 +317,8 @@ def cluster2_class(chocolate) :
     from sklearn.preprocessing import StandardScaler
     scaler = StandardScaler()
     weights = np.array([1, 1, 1, 1, 1, 1, 0.3]) 
-    X_scaled = scaler.fit_transform(X_rgb_hsv_cont) #* weights
-    combined_scaled = scaler.transform([combined]) #* weights
+    X_scaled = scaler.fit_transform(X_rgb_hsv_cont) * weights
+    combined_scaled = scaler.transform([combined]) * weights
 
     # Mahalanobis distance
     """ from scipy.spatial.distance import mahalanobis
@@ -349,6 +355,7 @@ def choc_classifier(chocolate) :
     # Colors to reject
     box1 = np.array([38.08589697, 48.86284786, 73.21062837])
     box2 = np.array([50.47642587, 57.81508881, 64.93243105])
+    box3 = np.array([41.73481665, 43.04650497, 40.80567227])
     magnet1 = np.array([44.36397149, 49.19480626, 52.67076268])
     magnet2 = np.array([87.38750211, 119.24561898, 110.90246239])
     magnet3 = np.array([52.07047985, 61.89227378, 74.86243147])
@@ -360,6 +367,7 @@ def choc_classifier(chocolate) :
     threshold = 10
     if (np.linalg.norm(avg_color - box1) < threshold or
         np.linalg.norm(avg_color - box2) < threshold or
+        np.linalg.norm(avg_color - box3) < threshold or
         np.linalg.norm(avg_color - magnet1) < threshold or
         np.linalg.norm(avg_color - magnet2) < threshold or
         np.linalg.norm(avg_color - magnet3) < threshold or
@@ -388,13 +396,12 @@ def choc_classifier(chocolate) :
     else :
         cluster = 2
 
-    
     if ratio > 33.4 and cluster == 1:
         cluster = 11
     if ratio <= 33.4 and cluster == 1:
         cluster = 12
     
-
+    #   72 correct,   correct cluster,  3 wrong cluster ,   4 mistake after from watershed ,  7
     if cluster == 11 :
         choc_class = cluster1_1class(chocolate)
 
@@ -459,6 +466,10 @@ def classification(segmented_image) :
         if (isolated_img.shape[0] > 350 or isolated_img.shape[1] > 350) : 
             continue
 
+        # Regions too small
+        if isolated_img.shape[0] < 95 and isolated_img.shape[1] < 95 :
+            continue
+
         # For chocolates glued together
         if (isolated_img.shape[0] > 230 or isolated_img.shape[1] > 230 or area > 20000) : 
             # Large object: apply Watershed to split it
@@ -488,7 +499,7 @@ def classification(segmented_image) :
                     continue  # Skip background and unknown
 
                 mask_ws = (markers == label_val).astype(np.uint8)
-                if np.sum(mask_ws) < 500:
+                if np.sum(mask_ws) < 10000:
                     continue  # Skip tiny blobs
 
                 # Create masked chocolate
@@ -529,10 +540,6 @@ def classification(segmented_image) :
                     chocolate_count[12] += 1
 
                 print(choc_class)  
-            continue
-
-        # Regions too small
-        if isolated_img.shape[0] < 95 and isolated_img.shape[1] < 95 :
             continue
 
         # Classify the chocolate

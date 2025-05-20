@@ -41,7 +41,7 @@ chocolate_colors = [
     TRIANGOLO_COLOR
 ]"""
 
-chocolate_colors = pd.read_csv('/Users/louiscuendet/Documents/EPFL NEURO-X /Semestre Printemps 2025/Image Analysis and Pattern Recognition/iapr_group_50/project/hsv_samples/concatenated.csv')[['H', 'S', 'V']]
+chocolate_colors = pd.read_csv('C:/Users/miski/Desktop/Neuro-X/MA2/IAPR_50/iapr_group_50/project/hsv_samples/concatenated.csv')[['H', 'S', 'V']]
 
 def chocolate_masking_weighted(img, threshold=30, weights=(1.0, 1.0, 0.0)):
     """
