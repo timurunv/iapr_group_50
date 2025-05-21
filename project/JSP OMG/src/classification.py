@@ -212,18 +212,18 @@ def cluster1_2class(chocolate) :
 
     # Reference
     X_rgb_hsv_text_rect_cont = np.array([ 
-        [116.85, 133.55, 153.15, 40.87, 69.17, 153.67, 0.93, 0.75, 43.92],      # class 1
-        [51.69, 62.39, 89.09, 26.53, 118.61, 89.53, 0.7781, 0.7882, 34.08],     # class 2
-        [181.48, 198.41, 202.34, 32.86, 29.1, 203.02, 0.8277, 0.7769, 27.39],   # class 3
-        [65.061, 89.55, 129.29, 17.28, 127.29, 129.40, 0.7771, 0.7616, 27.15],  # class 4
+        [116.85, 133.55, 153.15, 40.87, 69.17, 0.93, 0.75, 43.92], #153.67,     # class 1
+        [51.69, 62.39, 89.09, 26.53, 118.61, 0.7781, 0.7882, 34.08],  #89.53,   # class 2
+        [181.48, 198.41, 202.34, 32.86, 29.1, 0.8277, 0.7769, 27.39], #203.02,  # class 3
+        [65.061, 89.55, 129.29, 17.28, 127.29, 0.7771, 0.7616, 27.15], #129.40, # class 4
         #[72.46, 75.92, 95.81, 47.73, 81.07, 96.69, 0.7851, 0.8144, 32.16],     # class 5
-        [65.9, 68.21, 87.37, 51.97, 80.02, 87.68, 0.8273, 0.7967, 36.41],       # class 6
-        [70.04, 78.85, 111.07, 27.55, 102.75, 111.14, 0.7792, 0.6865, 28.62],   # class 7 
+        [65.9, 68.21, 87.37, 51.97, 80.02, 0.8273, 0.7967, 36.41],     #87.68,  # class 6
+        [70.04, 78.85, 111.07, 27.55, 102.75, 0.7792, 0.6865, 28.62],  #111.14, # class 7 
     ])
     
     y = np.array([1, 2, 3, 4, 6, 7]) # ,5
 
-    combined = np.hstack((mean_color_rgb, mean_hsv, texture, rectangularity, rms_contrast))
+    combined = np.hstack((mean_color_rgb, mean_hsv[0], mean_hsv[1], texture, rectangularity, rms_contrast))
     #print(combined)
 
     # Normalization (sometimes help recognize, sometimes classifies wrongly when rightly classified without norm)
@@ -304,22 +304,22 @@ def cluster2_class(chocolate) :
 
     # Reference
     X_rgb_hsv_cont = np.array([ 
-        [68.76, 64.52, 71.55, 80.87, 63.44, 77.08]#, 43.00],      # class 1
-        [87.51, 92.55, 115.25, 49.40, 76.30, 116.34]#, 37.16],     # class 2
+        [68.76, 64.52, 71.55, 80.87, 63.44, 77.08],#, 43.00],      # class 1
+        [87.51, 92.55, 115.25, 49.40, 76.30, 116.34],#, 37.16],     # class 2
         [160.69, 180.14, 187.04, 24.54, 36.21, 187.2]#, 34.51],   # class 3
     ])
     
     #X_rgb_hsv_text_rect_cont[:, -1] *= 0.1 
     y = np.array([1, 2, 3])
 
-    combined = np.hstack((mean_color_rgb, mean_hsv, rms_contrast))
+    combined = np.hstack((mean_color_rgb, mean_hsv)) #, rms_contrast
 
     # Normalization + Weighting (normalization sometimes help recognize, sometimes classifies wrongly when rightly classified without norm)
     from sklearn.preprocessing import StandardScaler
     scaler = StandardScaler()
     weights = np.array([1, 1, 1, 1, 1, 1, 0.3]) 
-    X_scaled = scaler.fit_transform(X_rgb_hsv_cont) * weights
-    combined_scaled = scaler.transform([combined]) * weights
+    X_scaled = scaler.fit_transform(X_rgb_hsv_cont) #* weights
+    combined_scaled = scaler.transform([combined]) #* weights
 
     # Mahalanobis distance
     """ from scipy.spatial.distance import mahalanobis
