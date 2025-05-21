@@ -207,7 +207,8 @@ def cluster1_2class(chocolate) :
 
     if stripe_count <= 20 and stripe_count >= 8 :
         return "Straciatella"
-
+    # if stripe_count > 20 :
+    #     return "Amandina"
 
     # Reference
     X_rgb_hsv_text_rect_cont = np.array([ 
@@ -303,9 +304,9 @@ def cluster2_class(chocolate) :
 
     # Reference
     X_rgb_hsv_cont = np.array([ 
-        [68.76, 64.52, 71.55, 80.87, 63.44, 77.08, 43.00],      # class 1
-        [87.51, 92.55, 115.25, 49.40, 76.30, 116.34, 37.16],     # class 2
-        [160.69, 180.14, 187.04, 24.54, 36.21, 187.2, 34.51],   # class 3
+        [68.76, 64.52, 71.55, 80.87, 63.44, 77.08]#, 43.00],      # class 1
+        [87.51, 92.55, 115.25, 49.40, 76.30, 116.34]#, 37.16],     # class 2
+        [160.69, 180.14, 187.04, 24.54, 36.21, 187.2]#, 34.51],   # class 3
     ])
     
     #X_rgb_hsv_text_rect_cont[:, -1] *= 0.1 
@@ -476,7 +477,6 @@ def classification(segmented_image) :
             region_crop = isolated_mask[minr:maxr, minc:maxc].astype(np.uint8)
             chocolate_crop = segmented_image[minr:maxr, minc:maxc]
 
-            # --- WATERSHED START ---
             # Create markers using distance transform
             dist = cv2.distanceTransform(region_crop * 255, cv2.DIST_L2, 5)
             _, sure_fg = cv2.threshold(dist, 0.9 * dist.max(), 255, 0)
@@ -508,7 +508,8 @@ def classification(segmented_image) :
                     masked_choco[..., c] = chocolate_crop_color[..., c] * mask_ws
 
                 isolated_imgs.append(masked_choco)
-            # --- WATERSHED END ---
+
+            # Classify the separated chocolates
             for isolated in isolated_imgs:
                 choc_class = choc_classifier(isolated)
 
@@ -573,7 +574,5 @@ def classification(segmented_image) :
             chocolate_count[12] += 1
 
         print(choc_class)
-
-    
 
     return chocolate_count
