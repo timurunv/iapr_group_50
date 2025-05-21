@@ -13,7 +13,7 @@ from skimage.feature import canny
 from skimage import io, color
 from skimage import segmentation, measure, exposure
 
-import cv2 # are we allowed?
+import cv2 
 import numpy as np
 
 import platform
@@ -35,6 +35,7 @@ from sklearn.neighbors import KNeighborsClassifier
 import matplotlib.pyplot as plt
 
 def cluster1_1class(cropped_choc) :
+    # Contour of chocolate
     choc_contour = []
     img = np.array(cropped_choc)
     img = np.mean(img, axis=2)
@@ -50,11 +51,8 @@ def cluster1_1class(cropped_choc) :
 
     # RGB
     mask = np.zeros(cropped_choc.shape[:2], dtype=np.uint8)
-    # Fill the contour on the mask
     cv2.drawContours(mask, [choc_contour], -1, color=255, thickness=-1)
-    # Compute the average color inside the contour
     mean_color = cv2.mean(cropped_choc, mask=mask)  # Returns (B, G, R, alpha)
-    # Convert BGR to RGB if needed
     mean_color_rgb = mean_color[:3][::-1]
 
     # HSV
@@ -97,29 +95,24 @@ def cluster1_1class(cropped_choc) :
     circularity = 4*np.pi * area / perimeter**2
 
     X_rgb_peri_area_circu = np.array([
-        [118.15, 140.1, 164.54, 566.9, 18405.0, 0.7196], #, 27.86, 74.94, 165.25, 35.71, 14],  # class 1
-        [63.66, 72.41, 98.92, 549.3, 17558.0, 0.7313], #, 30.93, 99.52, 101.26, 35.41, 0],     # class 2
-        [86.12, 97.97, 121.84, 628.8, 20334.0, 0.6461], #, 18.59, 81.83, 122.23, 38.51, 5]
-        [72.52, 81.16, 111.48, 584.0, 17327.5, 0.6384]
+        [118.15, 140.1, 164.54, 566.9, 18405.0, 0.7196],  # Crème Brulée
+        [63.66, 72.41, 98.92, 549.3, 17558.0, 0.7313],    # Noir authentique
+        [86.12, 97.97, 121.84, 628.8, 20334.0, 0.6461],   # Passion au lait
+        [72.52, 81.16, 111.48, 584.0, 17327.5, 0.6384]    # Triangolo
     ])
     y = np.array([1, 2, 3, 4])
 
-    combined = np.hstack((mean_color_rgb, perimeter, area, circularity)) #, mean_hsv, rms_contrast, stripe_count))
+    combined = np.hstack((mean_color_rgb, perimeter, area, circularity))
 
-    # Normalization (sometimes help recognize, sometimes classifies wrongly when rightly classified without norm)
+    # Normalization
     from sklearn.preprocessing import StandardScaler
     scaler = StandardScaler()
     weights = np.array([0.8, 0.8, 0.8, 1, 1])
     X_scaled = scaler.fit_transform(X_rgb_peri_area_circu) #* weights
     combined_scaled = scaler.transform([combined]) #* weights
 
-    # Mahalanobis distance
-    """ from scipy.spatial.distance import mahalanobis
-    V = np.cov(X_scaled, rowvar=False)
-    VI = np.linalg.inv(V) """
-
     # KNN
-    knn = KNeighborsClassifier(n_neighbors=1) # , metric='mahalanobis', metric_params={'V': V}
+    knn = KNeighborsClassifier(n_neighbors=1)
     knn.fit(X_scaled, y)
     new_sample = np.array(combined_scaled)
     predicted_class = knn.predict(new_sample)
@@ -154,7 +147,6 @@ def cluster1_2class(chocolate) :
     mask = np.zeros(chocolate.shape[:2], dtype=np.uint8)
     cv2.drawContours(mask, [choc_contour], -1, color=255, thickness=-1)
     mean_color = cv2.mean(chocolate, mask=mask)  # Returns (B, G, R, alpha)
-    # Convert BGR to RGB if needed
     mean_color_rgb = mean_color[:3][::-1]
 
     # HSV
@@ -211,38 +203,31 @@ def cluster1_2class(chocolate) :
 
     # Reference
     X_rgb_hsv_text_rect_cont = np.array([ 
-        [116.85, 133.55, 153.15, 40.87, 69.17, 153.67, 0.93, 0.75, 43.92],      # class 1
-        [51.69, 62.39, 89.09, 26.53, 118.61, 89.53, 0.7781, 0.7882, 34.08],     # class 2
-        [181.48, 198.41, 202.34, 32.86, 29.1, 203.02, 0.8277, 0.7769, 27.39],   # class 3
-        [65.061, 89.55, 129.29, 17.28, 127.29, 129.40, 0.7771, 0.7616, 27.15],  # class 4
-        #[72.46, 75.92, 95.81, 47.73, 81.07, 96.69, 0.7851, 0.8144, 32.16],     # class 5
-        [65.9, 68.21, 87.37, 51.97, 80.02, 87.68, 0.8273, 0.7967, 36.41],       # class 6
-        [70.04, 78.85, 111.07, 27.55, 102.75, 111.14, 0.7792, 0.6865, 28.62],   # class 7 
+        [116.85, 133.55, 153.15, 40.87, 69.17, 153.67, 0.93, 0.75, 43.92],      # Amandina
+        [51.69, 62.39, 89.09, 26.53, 118.61, 89.53, 0.7781, 0.7882, 34.08],     # Arabia
+        [181.48, 198.41, 202.34, 32.86, 29.1, 203.02, 0.8277, 0.7769, 27.39],   # Comtesse
+        [65.061, 89.55, 129.29, 17.28, 127.29, 129.40, 0.7771, 0.7616, 27.15],  # Noblesse
+        #[72.46, 75.92, 95.81, 47.73, 81.07, 96.69, 0.7851, 0.8144, 32.16],     # Straciatella
+        [65.9, 68.21, 87.37, 51.97, 80.02, 87.68, 0.8273, 0.7967, 36.41],       # Tentation noir
+        [70.04, 78.85, 111.07, 27.55, 102.75, 111.14, 0.7792, 0.6865, 28.62],   # Triangolo
     ])
     
     y = np.array([1, 2, 3, 4, 6, 7]) # ,5
 
     combined = np.hstack((mean_color_rgb, mean_hsv, texture, rectangularity, rms_contrast))
-    #print(combined)
 
-    # Normalization (sometimes help recognize, sometimes classifies wrongly when rightly classified without norm)
+    # Normalization 
     from sklearn.preprocessing import StandardScaler
     scaler = StandardScaler()
     weights = np.array([1, 1, 1, 1, 0.8, 0.8, 0.6, 0.6, 0.3])
     X_scaled = scaler.fit_transform(X_rgb_hsv_text_rect_cont) #* weights
     combined_scaled = scaler.transform([combined]) #* weights
 
-    # Mahalanobis distance
-    """ from scipy.spatial.distance import mahalanobis
-    V = np.cov(X_scaled, rowvar=False)
-    VI = np.linalg.inv(V) """
-
     # KNN
-    knn = KNeighborsClassifier(n_neighbors=1) # , metric='mahalanobis', metric_params={'V': V}
+    knn = KNeighborsClassifier(n_neighbors=1)
     knn.fit(X_scaled, y)
     new_sample = np.array(combined_scaled)
     predicted_class = knn.predict(new_sample)
-
 
     # Class prediction
     if predicted_class == 1 :
@@ -281,7 +266,6 @@ def cluster2_class(chocolate) :
     mask = np.zeros(chocolate.shape[:2], dtype=np.uint8)
     cv2.drawContours(mask, [choc_contour], -1, color=255, thickness=-1)
     mean_color = cv2.mean(chocolate, mask=mask)  # Returns (B, G, R, alpha)
-    # Convert BGR to RGB if needed
     mean_color_rgb = mean_color[:3][::-1]
 
     # HSV
@@ -303,30 +287,24 @@ def cluster2_class(chocolate) :
 
     # Reference
     X_rgb_hsv_cont = np.array([ 
-        [68.76, 64.52, 71.55, 80.87, 63.44, 77.08, 43.00],      # class 1
-        [87.51, 92.55, 115.25, 49.40, 76.30, 116.34, 37.16],     # class 2
-        [160.69, 180.14, 187.04, 24.54, 36.21, 187.2, 34.51],   # class 3
+        [68.76, 64.52, 71.55, 80.87, 63.44, 77.08, 43.00],      # Jelly Black
+        [87.51, 92.55, 115.25, 49.40, 76.30, 116.34, 37.16],    # Jelly Milk
+        [160.69, 180.14, 187.04, 24.54, 36.21, 187.2, 34.51],   # Jelly White
     ])
     
-    #X_rgb_hsv_text_rect_cont[:, -1] *= 0.1 
     y = np.array([1, 2, 3])
 
     combined = np.hstack((mean_color_rgb, mean_hsv, rms_contrast))
 
-    # Normalization + Weighting (normalization sometimes help recognize, sometimes classifies wrongly when rightly classified without norm)
+    # Normalization
     from sklearn.preprocessing import StandardScaler
     scaler = StandardScaler()
     weights = np.array([1, 1, 1, 1, 1, 1, 0.3]) 
-    X_scaled = scaler.fit_transform(X_rgb_hsv_cont) * weights
-    combined_scaled = scaler.transform([combined]) * weights
-
-    # Mahalanobis distance
-    """ from scipy.spatial.distance import mahalanobis
-    V = np.cov(X_scaled, rowvar=False)
-    VI = np.linalg.inv(V) """
+    X_scaled = scaler.fit_transform(X_rgb_hsv_cont) #* weights
+    combined_scaled = scaler.transform([combined]) #* weights
 
     # KNN
-    knn = KNeighborsClassifier(n_neighbors=1) # , metric='mahalanobis', metric_params={'V': V}
+    knn = KNeighborsClassifier(n_neighbors=1)
     knn.fit(X_scaled, y)
     new_sample = np.array(combined_scaled)
     predicted_class = knn.predict(new_sample)
@@ -352,7 +330,7 @@ def choc_classifier(chocolate) :
 
     avg_color = np.mean(img[mask], axis=0)
 
-    # Colors to reject
+    # Black boxes and magnets
     box1 = np.array([38.08589697, 48.86284786, 73.21062837])
     box2 = np.array([50.47642587, 57.81508881, 64.93243105])
     box3 = np.array([41.73481665, 43.04650497, 40.80567227])
@@ -363,7 +341,6 @@ def choc_classifier(chocolate) :
     magnet5 = np.array([44.58164251, 55.60676329, 82.78636608])
     magnet6 = np.array([41.67514188, 60.42372304, 99.57775255])
     
-    # Check distance to pure colors
     threshold = 10
     if (np.linalg.norm(avg_color - box1) < threshold or
         np.linalg.norm(avg_color - box2) < threshold or
@@ -381,27 +358,27 @@ def choc_classifier(chocolate) :
     img = np.array(chocolate)
     img = np.mean(img, axis=2)
     binary = img > 0
-    #print(binary.shape)
+    
     contours = find_contours(binary, level=0.5)
     if contours:
         choc_contour = np.fliplr(max(contours, key=lambda x: x.shape[0]))
+        
     # Compute the ratio perimeter vs area of the chocolate and assign the cluster
     choc_contour = choc_contour.astype(np.float32)
     ratio = cv2.contourArea(choc_contour)/cv2.arcLength(choc_contour, closed=True)
     compacity = cv2.contourArea(choc_contour)**2/cv2.arcLength(choc_contour, closed=True)
     cluster = 0
 
-    if compacity > 310000 : #350000
+    if compacity > 310000 : # Threshold fine tuned on the train set
         cluster = 1
     else :
         cluster = 2
 
-    if ratio > 33.4 and cluster == 1:
+    if ratio > 33.4 and cluster == 1:  # Threshold fine tuned on the train set
         cluster = 11
     if ratio <= 33.4 and cluster == 1:
         cluster = 12
     
-    #   72 correct,   correct cluster,  3 wrong cluster ,   4 mistake after from watershed ,  7
     if cluster == 11 :
         choc_class = cluster1_1class(chocolate)
 
@@ -448,17 +425,16 @@ def classification(segmented_image) :
         for c in range(3):
             isolated_img[..., c] = img_crop[..., c] * smoothed_mask
 
-        # Area
+        # Area to identify glued chocolates
         choc_contour = []
         binary = isolated_mask > 0
-        #print(binary.shape)
         contours = find_contours(binary, level=0.5)
         if contours:
             choc_contour = np.fliplr(max(contours, key=lambda x: x.shape[0]))
-        # Compute the ratio perimeter vs area of the chocolate and assign the cluster
         choc_contour = choc_contour.astype(np.float32)
         area = cv2.contourArea(choc_contour)
 
+        # Invalid shape
         if (isolated_img.shape[0] < 2 or isolated_img.shape[1] < 2) : 
             continue
     
@@ -476,7 +452,6 @@ def classification(segmented_image) :
             region_crop = isolated_mask[minr:maxr, minc:maxc].astype(np.uint8)
             chocolate_crop = segmented_image[minr:maxr, minc:maxc]
 
-            # --- WATERSHED START ---
             # Create markers using distance transform
             dist = cv2.distanceTransform(region_crop * 255, cv2.DIST_L2, 5)
             _, sure_fg = cv2.threshold(dist, 0.9 * dist.max(), 255, 0)
@@ -508,7 +483,7 @@ def classification(segmented_image) :
                     masked_choco[..., c] = chocolate_crop_color[..., c] * mask_ws
 
                 isolated_imgs.append(masked_choco)
-            # --- WATERSHED END ---
+            
             for isolated in isolated_imgs:
                 choc_class = choc_classifier(isolated)
 
@@ -538,8 +513,8 @@ def classification(segmented_image) :
                     chocolate_count[11] += 1
                 if choc_class == "Straciatella":
                     chocolate_count[12] += 1
-
                 #print(choc_class)  
+                
             continue
 
         # Classify the chocolate
@@ -573,7 +548,5 @@ def classification(segmented_image) :
             chocolate_count[12] += 1
 
         #print(choc_class)
-
-    
 
     return chocolate_count
