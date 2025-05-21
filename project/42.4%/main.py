@@ -17,10 +17,12 @@ def main():
     test_images, test_images_ref = load_images(args.test_path_ref)
 
     df = pd.read_csv('src/sample_submission.csv')
+    df = pd.DataFrame(columns=df.columns)
     kmeans = joblib.load("src/kmeans_background_model.pkl")
 
     
     for i,image in enumerate(test_images):
+        print(f'image {i} in pipeline')
         features = load_features(image)
         label = kmeans.predict(features)
         if label == 0:
@@ -90,7 +92,7 @@ def main():
 
         image_ref = int(test_images_ref[i])
         row = np.insert(row,0,image_ref)
-        df.loc[df.id == image_ref,:] = row
+        df.loc[len(df)] = row
 
     df.set_index('id').to_csv('submission_final.csv')
 
