@@ -539,7 +539,7 @@ def classification(segmented_image) :
                 if choc_class == "Straciatella":
                     chocolate_count[12] += 1
 
-                print(choc_class)  
+                #print(choc_class)  
             continue
 
         # Classify the chocolate
@@ -572,7 +572,7 @@ def classification(segmented_image) :
         if choc_class == "Straciatella":
             chocolate_count[12] += 1
 
-        print(choc_class)
+        #print(choc_class)
 
     
 
